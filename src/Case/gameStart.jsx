@@ -11,6 +11,7 @@ import { queryAllCaseSummaries } from "./../../RAG/queryAllCaseSummaries"
 import { storeOverviewEmbedding } from "../../RAG/storeOverviewEmbedding"
 import WalletLeaderboard from "../Stats/WalletLeaderboard.jsx"
 import { useAccount, useChainId } from "wagmi"
+import { getRandomDifficulty, getDifficultyLabel, getDifficultyColors } from "../utils/difficulty"
 
 // 🎨 Icons
 import { 
@@ -593,6 +594,16 @@ const GameStart = () => {
       suspects: finalParsed.suspects.map(s => ({ original: s.displayName, normalized: s.name }))
     });
 
+    // Assign difficulty level randomly (Easy: 0, Medium: 1, Hard: 2)
+    // This matches the Solidity enum: enum Difficulty { Easy, Medium, Hard }
+    const difficultyLevel = getRandomDifficulty();
+    finalParsed.difficulty = difficultyLevel;
+
+    console.log("🎯 Difficulty assigned:", {
+      level: difficultyLevel,
+      label: getDifficultyLabel(difficultyLevel)
+    });
+
     // Generate mysteryId and salt for blockchain commitment
     const newMysteryId = Date.now() // Use timestamp as mysteryId
     const newSalt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
@@ -898,9 +909,15 @@ const GameStart = () => {
                                         <div className="flex items-center gap-2 text-purple-400 text-xs font-bold uppercase tracking-wider">
                                             <MapPin className="w-3 h-3" /> Crime Scene Data
                                         </div>
-                                        <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded border ${caseData.difficulty === 'Hard' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>
-                                            {caseData.difficulty} Level
-                                        </span>
+                                        {(() => {
+                                          const colors = getDifficultyColors(caseData.difficulty);
+                                          const label = getDifficultyLabel(caseData.difficulty);
+                                          return (
+                                            <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded border ${colors.bg} ${colors.text} ${colors.border}`}>
+                                              {label} Level
+                                            </span>
+                                          );
+                                        })()}
                                     </div>
                                     <h2 className="text-2xl font-black text-white leading-tight mb-4 drop-shadow-md">{caseData.case_title}</h2>
                                     <div className="text-slate-300 text-sm leading-relaxed border-t border-slate-700/50 pt-4 font-medium">

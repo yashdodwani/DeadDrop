@@ -23,6 +23,12 @@ export const DEAD_DROP_REGISTRY_ABI = [
         "internalType": "bytes32",
         "name": "answerHash",
         "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "difficulty",
+        "type": "uint8"
       }
     ],
     "name": "MysteryCreated",
@@ -59,6 +65,11 @@ export const DEAD_DROP_REGISTRY_ABI = [
         "internalType": "bytes32",
         "name": "_answerHash",
         "type": "bytes32"
+      },
+      {
+        "internalType": "uint8",
+        "name": "_difficulty",
+        "type": "uint8"
       }
     ],
     "name": "createMystery",
@@ -113,6 +124,11 @@ export const DEAD_DROP_REGISTRY_ABI = [
         "internalType": "uint256",
         "name": "solveTime",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "difficulty",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",

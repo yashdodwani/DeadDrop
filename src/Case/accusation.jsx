@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
-import { Gavel, Fingerprint, AlertTriangle, ArrowRight, CheckCircle2, RotateCcw, Loader2 } from "lucide-react";
+import { Gavel, Fingerprint, AlertTriangle, ArrowRight, CheckCircle2, RotateCcw, Loader2, Trophy } from "lucide-react";
 import { DEAD_DROP_REGISTRY_ADDRESS, DEAD_DROP_REGISTRY_ABI } from "../monad/deadDropRegistry";
 import { monadTestnet } from "../../waqmi.config";
+import { getPointsForDifficulty, getDifficultyLabel } from "../utils/difficulty";
 
 // Helper function to normalize strings for blockchain matching
 // CRITICAL: Solidity hashing is case-sensitive and whitespace-sensitive
@@ -148,10 +149,24 @@ const Accusation = ({ caseData, onResetGame, onSuccessfulSolve, mysteryId, salt 
               <CheckCircle2 className="w-8 h-8 text-green-400" />
             </div>
             <h2 className="text-2xl font-black text-green-400 uppercase tracking-widest mb-2">Mystery Solved</h2>
-            <p className="text-slate-300 mb-4 text-sm">
+            <p className="text-slate-300 mb-2 text-sm">
               Excellent deduction, Detective. <br/>
               <span className="text-green-300 font-bold">{murdererName}</span> has been apprehended.
             </p>
+
+            {/* Points Awarded */}
+            {caseData?.difficulty !== undefined && (
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Trophy className="w-4 h-4 text-yellow-400" />
+                <span className="text-yellow-400 font-bold text-sm">
+                  +{getPointsForDifficulty(caseData.difficulty)} points
+                </span>
+                <span className="text-slate-500 text-xs">
+                  ({getDifficultyLabel(caseData.difficulty)})
+                </span>
+              </div>
+            )}
+
             {txHash && (
               <p className="text-xs text-slate-500 mb-4 font-mono break-all">
                 Tx: {txHash.slice(0, 10)}...{txHash.slice(-8)}

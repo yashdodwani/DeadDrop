@@ -1,9 +1,10 @@
 // src/Stats/WalletLeaderboard.jsx
 import React, { useEffect, useState } from 'react'
 import { usePublicClient } from 'wagmi'
-import { Trophy, Medal, ShieldCheck, Timer, Hash } from 'lucide-react'
-import { DEAD_DROP_REGISTRY_ADDRESS } from '../monad/deadDropRegistry'
+import { Trophy, Medal, ShieldCheck, Timer, Hash, Award } from 'lucide-react'
+import { DEAD_DROP_REGISTRY_ADDRESS, DEAD_DROP_REGISTRY_ABI } from '../monad/deadDropRegistry'
 import { monadTestnet } from '../../waqmi.config'
+import { getPointsForDifficulty } from '../utils/difficulty'
 
 // Helper to truncate addresses like 0x1234...abcd
 const shortAddr = (addr) =>
@@ -44,35 +45,65 @@ const WalletLeaderboard = () => {
         // Aggregate by wallet address
         const byWallet = new Map()
 
-        logs.forEach((log) => {
+        // First pass: aggregate solve data
+        for (const log of logs) {
           const solver = log.args.solver
           const solveTime = Number(log.args.solveTime)
+          const mysteryId = log.args.mysteryId
 
           if (!byWallet.has(solver)) {
             byWallet.set(solver, {
               wallet_address: solver,
               total_solves: 0,
               fastest_time: solveTime,
-              total_time: 0
+              total_time: 0,
+              total_points: 0,
+              mysteryIds: []
             })
           }
 
           const entry = byWallet.get(solver)
           entry.total_solves += 1
           entry.total_time += solveTime
+          entry.mysteryIds.push(mysteryId)
 
           if (solveTime < entry.fastest_time) {
             entry.fastest_time = solveTime
           }
-        })
+        }
 
-        // Convert to array and sort by fastest time, then by total solves
+        // Second pass: fetch difficulty for each mystery to calculate points
+        for (const [solver, entry] of byWallet.entries()) {
+          let totalPoints = 0
+
+          for (const mysteryId of entry.mysteryIds) {
+            try {
+              const mysteryData = await publicClient.readContract({
+                address: DEAD_DROP_REGISTRY_ADDRESS,
+                abi: DEAD_DROP_REGISTRY_ABI,
+                functionName: 'mysteries',
+                args: [mysteryId]
+              })
+
+              // mysteryData structure: [answerHash, createdAt, solved, solver, solveTime, difficulty]
+              const difficulty = Number(mysteryData[5])
+              const points = getPointsForDifficulty(difficulty)
+              totalPoints += points
+            } catch (err) {
+              console.error(`Error fetching difficulty for mystery ${mysteryId}:`, err)
+            }
+          }
+
+          entry.total_points = totalPoints
+        }
+
+        // Convert to array and sort by total points (descending), then by fastest time
         const leaderboard = Array.from(byWallet.values())
           .sort((a, b) => {
-            if (a.fastest_time !== b.fastest_time) {
-              return a.fastest_time - b.fastest_time
+            if (a.total_points !== b.total_points) {
+              return b.total_points - a.total_points // Higher points first
             }
-            return b.total_solves - a.total_solves
+            return a.fastest_time - b.fastest_time // Faster time as tiebreaker
           })
 
         setRows(leaderboard)
@@ -141,16 +172,22 @@ const WalletLeaderboard = () => {
               <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Wallet
               </th>
-              <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <th className="px-4 py-3 text-center text-xs font-bold text-yellow-400 uppercase tracking-wider">
                 <div className="flex items-center justify-center gap-1">
-                  <Timer className="w-3 h-3" />
-                  Fastest
+                  <Award className="w-3 h-3" />
+                  Points
                 </div>
               </th>
               <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
                 <div className="flex items-center justify-center gap-1">
                   <Hash className="w-3 h-3" />
                   Solves
+                </div>
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <div className="flex items-center justify-center gap-1">
+                  <Timer className="w-3 h-3" />
+                  Fastest
                 </div>
               </th>
             </tr>
@@ -175,13 +212,18 @@ const WalletLeaderboard = () => {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-center whitespace-nowrap">
-                  <span className="text-sm font-bold text-green-400">
-                    {formatTime(row.fastest_time)}
+                  <span className="text-lg font-bold text-yellow-400">
+                    {row.total_points}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-center whitespace-nowrap">
                   <span className="text-sm text-slate-300">
                     {row.total_solves}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-center whitespace-nowrap">
+                  <span className="text-sm font-bold text-green-400">
+                    {formatTime(row.fastest_time)}
                   </span>
                 </td>
               </tr>
