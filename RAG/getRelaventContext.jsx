@@ -5,7 +5,11 @@ import { getEmbeddingFromHF } from "./generateEmbeddingHF"
 
 export const getRelevantContext = async (caseId, input) => {
   const inputEmbedding = await getEmbeddingFromHF(input)
-  if (!inputEmbedding) return null
+
+  if (!inputEmbedding) {
+    console.info("💡 RAG context disabled - continuing without embeddings")
+    return null
+  }
 
   try {
     const { data, error } = await supabase

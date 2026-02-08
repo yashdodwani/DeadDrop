@@ -560,14 +560,39 @@ const GameStart = () => {
       console.log("✅ Fallback case generated successfully")
     }
 
+    // Helper function to normalize names for blockchain matching
+    // CRITICAL: Must match the normalization in accusation.jsx
+    const normalizeForBlockchain = (str) => {
+      return str
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+    };
+
     // Ensure all suspects and witnesses have chat arrays
+    // AND normalize names for blockchain compatibility
     if (finalParsed.suspects) {
-      finalParsed.suspects = finalParsed.suspects.map((s) => ({ ...s, chat: s.chat || [] }))
+      finalParsed.suspects = finalParsed.suspects.map((s) => ({
+        ...s,
+        chat: s.chat || [],
+        // Store both original name (for display) and normalized name (for blockchain)
+        displayName: s.name,
+        name: normalizeForBlockchain(s.name)
+      }))
     }
     if (finalParsed.witnesses) {
-      finalParsed.witnesses = finalParsed.witnesses.map((w) => ({ ...w, chat: w.chat || [] }))
+      finalParsed.witnesses = finalParsed.witnesses.map((w) => ({
+        ...w,
+        chat: w.chat || [],
+        displayName: w.name,
+        name: normalizeForBlockchain(w.name)
+      }))
     }
-    
+
+    console.log("✅ Names normalized for blockchain:", {
+      suspects: finalParsed.suspects.map(s => ({ original: s.displayName, normalized: s.name }))
+    });
+
     // Generate mysteryId and salt for blockchain commitment
     const newMysteryId = Date.now() // Use timestamp as mysteryId
     const newSalt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
@@ -635,10 +660,9 @@ const GameStart = () => {
         : `${character.name}: ${msg.content}${msg.hint ? ` (Hint: ${msg.hint})` : ''}`
     ).join("\n")
     
-    console.log("🔍 Getting relevant context...")
+    // Try to get RAG context (optional, will be null if embeddings disabled)
     let context = await getRelevantContext(caseData.id, _currentInput)
-    console.log("📚 Context retrieved:", context ? context.substring(0, 100) + "..." : "None")
-    
+
     const finalPrompt = `${_viewing === "suspect" ? `You are ${character.name}, a suspect.` : `You are ${character.name}, a witness.`} Context: ${context || "None"}. Chat: ${dialog}. Respond as ${character.name}, concise (max 35 words). If murderer, lie convincingly. Include 1 generic detective question hint separated by @.`
 
     try {
@@ -924,10 +948,10 @@ const GameStart = () => {
                                             className="group relative bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-purple-500 rounded-xl p-4 transition-all text-left flex items-center gap-4 shadow-lg hover:shadow-purple-500/10 hover:-translate-y-1"
                                         >
                                             <div className="w-16 h-16 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border-2 border-slate-600 group-hover:border-purple-400 shadow-inner">
-                                                <img src={getGenderBasedAvatar(suspect.name.replace(/\s+/g, ''), suspect.gender)} alt="" className="w-full h-full object-cover" />
+                                                <img src={getGenderBasedAvatar((suspect.displayName || suspect.name).replace(/\s+/g, ''), suspect.gender)} alt="" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-white font-bold text-base truncate group-hover:text-purple-300">{suspect.name}</div>
+                                                <div className="text-white font-bold text-base truncate group-hover:text-purple-300">{suspect.displayName || suspect.name}</div>
                                                 <div className="text-[10px] text-slate-400 uppercase tracking-wide mt-1 font-bold">Suspect #{idx+1}</div>
                                                 <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-2">
                                                     <div className={`w-1.5 h-1.5 rounded-full ${suspect.chat.length > 0 ? 'bg-green-500' : 'bg-slate-600'}`}></div>
@@ -957,10 +981,10 @@ const GameStart = () => {
                                             className="group relative bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-blue-500 rounded-xl p-4 transition-all text-left flex items-center gap-4 shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1"
                                         >
                                             <div className="w-16 h-16 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border-2 border-slate-600 group-hover:border-blue-400 shadow-inner">
-                                                <img src={getGenderBasedAvatar(witness.name.replace(/\s+/g, ''), witness.gender)} alt="" className="w-full h-full object-cover" />
+                                                <img src={getGenderBasedAvatar((witness.displayName || witness.name).replace(/\s+/g, ''), witness.gender)} alt="" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-white font-bold text-base truncate group-hover:text-blue-300">{witness.name}</div>
+                                                <div className="text-white font-bold text-base truncate group-hover:text-blue-300">{witness.displayName || witness.name}</div>
                                                 <div className="text-[10px] text-slate-400 uppercase tracking-wide mt-1 font-bold">Witness</div>
                                                 <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-2">
                                                     <div className={`w-1.5 h-1.5 rounded-full ${witness.chat.length > 0 ? 'bg-green-500' : 'bg-slate-600'}`}></div>

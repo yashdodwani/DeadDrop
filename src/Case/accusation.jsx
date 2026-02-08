@@ -4,6 +4,15 @@ import { Gavel, Fingerprint, AlertTriangle, ArrowRight, CheckCircle2, RotateCcw,
 import { DEAD_DROP_REGISTRY_ADDRESS, DEAD_DROP_REGISTRY_ABI } from "../monad/deadDropRegistry";
 import { monadTestnet } from "../../waqmi.config";
 
+// Helper function to normalize strings for blockchain matching
+// CRITICAL: Solidity hashing is case-sensitive and whitespace-sensitive
+const normalizeForBlockchain = (str) => {
+  return str
+    .trim()                    // Remove leading/trailing whitespace
+    .replace(/\s+/g, ' ')      // Normalize multiple spaces to single space
+    .toLowerCase();            // Convert to lowercase for case-insensitive matching
+};
+
 const Accusation = ({ caseData, onResetGame, onSuccessfulSolve, mysteryId, salt }) => {
   const [accusedName, setAccusedName] = useState("");
   const [showResult, setShowResult] = useState(false);
@@ -11,6 +20,7 @@ const Accusation = ({ caseData, onResetGame, onSuccessfulSolve, mysteryId, salt 
   const [murdererName, setMurdererName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [txHash, setTxHash] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -19,24 +29,32 @@ const Accusation = ({ caseData, onResetGame, onSuccessfulSolve, mysteryId, salt 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!accusedName.trim()) return;
+    if (!accusedName.trim()) {
+      setErrorMessage("Please enter a suspect name");
+      return;
+    }
 
     if (!isConnected || !walletClient || !mysteryId || !salt) {
-      alert("Wallet not connected or mystery not initialized");
+      setErrorMessage("⚠️ Wallet not connected or mystery not initialized");
       return;
     }
 
     setSubmitting(true);
-    
+    setErrorMessage("");
+
     try {
-      // Find the actual murderer for local verification
+      // Find the actual murderer for UI display
       const murderer = caseData.suspects.find(suspect => suspect.is_murderer);
       setMurdererName(murderer ? murderer.name : "Unknown");
 
-      // Call solveMystery on DeadDropRegistry smart contract
+      // Normalize the input to match blockchain expectations
+      // This handles: "John" vs "john" vs " John " vs "JOHN"
+      const normalizedCulprit = normalizeForBlockchain(accusedName);
+
       console.log("🔐 Calling solveMystery on-chain...", {
         mysteryId,
-        culprit: accusedName,
+        originalInput: accusedName,
+        normalizedCulprit,
         salt
       });
 
@@ -44,7 +62,7 @@ const Accusation = ({ caseData, onResetGame, onSuccessfulSolve, mysteryId, salt 
         address: DEAD_DROP_REGISTRY_ADDRESS,
         abi: DEAD_DROP_REGISTRY_ABI,
         functionName: 'solveMystery',
-        args: [BigInt(mysteryId), accusedName, salt]
+        args: [BigInt(mysteryId), normalizedCulprit, salt]
       });
 
       console.log("📤 Transaction sent:", hash);
@@ -55,28 +73,50 @@ const Accusation = ({ caseData, onResetGame, onSuccessfulSolve, mysteryId, salt 
 
       console.log("✅ Transaction confirmed:", receipt);
 
-      // Check if the mystery was solved successfully
-      // If transaction succeeded, the guess was correct
-      const isMatch = receipt.status === 'success';
-
-      setIsCorrect(isMatch);
+      // If we got here, transaction succeeded = correct answer!
+      setIsCorrect(true);
       setShowResult(true);
 
-      // If the accusation was correct, notify the parent component
-      if (isMatch && onSuccessfulSolve) {
+      // Notify parent component
+      if (onSuccessfulSolve) {
         onSuccessfulSolve();
       }
 
     } catch (error) {
       console.error("❌ Error solving mystery:", error);
 
-      // If the transaction reverted, it means the guess was incorrect
-      if (error.message?.includes("Incorrect solution")) {
+      // Parse different error types
+      const errorMsg = error.message || error.toString();
+
+      // Check for specific revert reasons
+      if (errorMsg.includes("Incorrect solution") ||
+          errorMsg.includes("execution reverted") ||
+          errorMsg.includes("reverted")) {
+
+        console.log("🔍 Wrong answer - transaction reverted on-chain");
         setIsCorrect(false);
         setShowResult(true);
+
+      } else if (errorMsg.includes("user rejected") ||
+                 errorMsg.includes("User denied")) {
+
+        setErrorMessage("❌ Transaction cancelled by user");
+
+      } else if (errorMsg.includes("insufficient funds")) {
+
+        setErrorMessage("❌ Insufficient funds for gas");
+
+      } else if (errorMsg.includes("network")) {
+
+        setErrorMessage("❌ Network error - please check connection");
+
       } else {
-        alert("Failed to submit solution. Please try again.");
+
+        // Generic error
+        setErrorMessage("❌ Transaction failed. Please try again.");
+        console.error("Unhandled error:", error);
       }
+
     } finally {
       setSubmitting(false);
     }
@@ -151,6 +191,14 @@ const Accusation = ({ caseData, onResetGame, onSuccessfulSolve, mysteryId, salt 
 
   return (
     <div className="bg-slate-900/50 p-4 rounded-lg">
+      {/* Error Message Display */}
+      {errorMessage && (
+        <div className="mb-3 p-3 bg-red-900/20 border border-red-500/50 rounded-lg flex items-start gap-2 animate-in fade-in">
+          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-red-300 text-xs">{errorMessage}</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

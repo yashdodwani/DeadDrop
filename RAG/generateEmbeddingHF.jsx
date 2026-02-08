@@ -26,13 +26,30 @@ const fetchFieldFromSupabase = async (tableName, docId, fieldName) => {
 }
 
 export const getEmbeddingFromHF = async (text) => {
+    // NOTE: HuggingFace API calls from browser are blocked by CORS
+    // This is an optional feature for RAG context enhancement
+    // The game works perfectly without embeddings
+
+    console.warn("⚠️ HuggingFace embeddings disabled (CORS restriction from browser)")
+    console.info("💡 Embeddings are optional - game works without them")
+    console.info("💡 To enable: Set up a backend proxy or use server-side generation")
+
+    // Return null to indicate embeddings are not available
+    // This will cause the game to skip similarity checks and RAG context
+    return null
+
+    /* CORS-blocked code - keeping for reference if you add a backend proxy
+
     let ApiKey = await fetchFieldFromSupabase("apis", "0", "huggingface_api")
 
-    // Fallback API key if Supabase fetch fails
     if (!ApiKey) {
-      console.warn("⚠️ No API key found in Supabase, using fallback key")
-      // You should replace this with a valid HuggingFace API key
-      ApiKey = "" // Replace with actual fallback key
+      console.warn("⚠️ No API key found in Supabase")
+      ApiKey = import.meta.env.VITE_HUGGINGFACE_API_KEY || ""
+    }
+
+    if (!ApiKey) {
+      console.warn("⚠️ No HuggingFace API key configured")
+      return null
     }
 
     try {
@@ -59,7 +76,12 @@ export const getEmbeddingFromHF = async (text) => {
       const result = await response.json()
       return result
     } catch (error) {
-      console.error("🔥 Error calling HuggingFace API:", error)
+      if (error.message?.includes('Failed to fetch')) {
+        console.warn("⚠️ HuggingFace API blocked by CORS - embeddings disabled")
+      } else {
+        console.error("❌ Error calling HuggingFace API:", error)
+      }
       return null
     }
+    */
 }
