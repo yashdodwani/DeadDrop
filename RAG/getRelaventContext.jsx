@@ -11,6 +11,12 @@ export const getRelevantContext = async (caseId, input) => {
     return null
   }
 
+  // Guard: Return null if Supabase is not configured
+  if (!supabase) {
+    console.warn("⚠️ Supabase not configured - skipping context retrieval")
+    return null
+  }
+
   try {
     const { data, error } = await supabase
       .from('embeddings')

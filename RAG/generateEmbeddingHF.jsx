@@ -1,6 +1,12 @@
 import { supabase } from '../src/Supabase/supabaseClient'
 
 const fetchFieldFromSupabase = async (tableName, docId, fieldName) => {
+  // Guard: Return null if Supabase is not configured
+  if (!supabase) {
+    console.warn("⚠️ Supabase not configured - skipping field fetch")
+    return null
+  }
+
   try {
     const { data, error } = await supabase
       .from(tableName)

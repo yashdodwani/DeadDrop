@@ -2,6 +2,12 @@ import { supabase } from './supabaseClient'
 
 // Store embeddings for case
 export const storeEmbeddingsForCase = async (caseData, caseId) => {
+  // Guard: Return early if Supabase is not configured
+  if (!supabase) {
+    console.warn("⚠️ Supabase not configured - skipping embeddings storage")
+    return
+  }
+
   try {
     const itemsToEmbed = []
 
@@ -45,6 +51,12 @@ export const storeEmbeddingsForCase = async (caseData, caseId) => {
 
 // Store overview embedding
 export const storeOverviewEmbedding = async (caseId, summary, embedding) => {
+  // Guard: Return early if Supabase is not configured
+  if (!supabase) {
+    console.warn("⚠️ Supabase not configured - skipping overview embedding storage")
+    return
+  }
+
   try {
     const { error } = await supabase
       .from('case_overview_embeddings')
