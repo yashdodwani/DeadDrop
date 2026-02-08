@@ -10,16 +10,19 @@ function Hero() {
 
   useEffect(() => {
     // Update logged in status when auth state changes
-    const { data } = onAuthStateChange((user) => {
+    const subscription = onAuthStateChange((user) => {
       setLoggedIn(!!user)
     })
 
     // Return cleanup function
     return () => {
-      if (data && typeof data.subscription === 'function') {
-        data.subscription()
-      } else if (typeof data === 'function') {
-        data()
+      // Handle both old and new Supabase subscription formats
+      if (subscription?.data?.subscription?.unsubscribe) {
+        subscription.data.subscription.unsubscribe()
+      } else if (subscription?.subscription?.unsubscribe) {
+        subscription.subscription.unsubscribe()
+      } else if (typeof subscription === 'function') {
+        subscription()
       }
     }
   }, [])
