@@ -47,9 +47,21 @@ export const DEAD_DROP_NFT_ADDRESS = "0xYourDeployedNFTAddress"
 
 ### 4. Environment Variables
 
-Create/update `.env` file:
+Create `.env` file (already done if you followed step 3):
+
 ```bash
+# Copy from template
+cp .env.example .env
+
+# Edit with your actual values
+nano .env  # or use your preferred editor
+```
+
+Required variables:
+```env
 VITE_GEMINI_API_KEY=your_gemini_api_key_here
+VITE_DEAD_DROP_REGISTRY_ADDRESS=0xYourDeployedAddress
+VITE_DEAD_DROP_NFT_ADDRESS=0xYourDeployedAddress
 ```
 
 ### 5. Test Build

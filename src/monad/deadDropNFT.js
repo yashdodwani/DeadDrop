@@ -1,7 +1,7 @@
 // src/monad/deadDropNFT.js
 
 // DeadDropNFT contract deployed on Monad Testnet
-export const DEAD_DROP_NFT_ADDRESS = "0xYourDeployedNFTAddress"; // TODO: Update with actual deployed address
+export const DEAD_DROP_NFT_ADDRESS = import.meta.env.VITE_DEAD_DROP_NFT_ADDRESS || "0x0000000000000000000000000000000000000000";
 
 export const DEAD_DROP_NFT_ABI = [
   {
